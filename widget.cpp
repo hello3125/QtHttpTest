@@ -12,6 +12,7 @@ Widget::Widget(QWidget *parent)
 {
     ui->setupUi(this);
 
+    setWindowTitle(QString("qt实现Http"));
     qDebug()<< QSslSocket::sslLibraryBuildVersionString();
 
     manager = new QNetworkAccessManager(this);
