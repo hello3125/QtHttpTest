@@ -59,10 +59,9 @@ void Widget::on_getBut_clicked()
 
 void Widget::onfinished()
 {
-    qDebug() << "test2" << endl;
-    QNetworkReply *reply = (QNetworkReply*)(sender());
+    QNetworkReply *reply =  qobject_cast<QNetworkReply*>(sender());
 
-    if(reply->error() != QNetworkReply::NoError) {
+    if(!reply && reply->error() != QNetworkReply::NoError) {
             qDebug() << "QNetworkReply Error: " << reply->errorString();
             myError("QNetworkReply Error"+reply->errorString());
             return;
@@ -103,9 +102,10 @@ void Widget::onfinished()
 void Widget::onfinished_1()
 {
     qDebug() << "test2" << endl;
-    QNetworkReply *reply = (QNetworkReply*)(sender());
 
-    if(reply->error() != QNetworkReply::NoError) {
+    QNetworkReply *reply =  qobject_cast<QNetworkReply*>(sender());;
+
+    if(!reply && reply->error() != QNetworkReply::NoError) {
             qDebug() << "QNetworkReply Error: " << reply->errorString();
             myError("QNetworkReply Error: " + reply->errorString());
             return;
