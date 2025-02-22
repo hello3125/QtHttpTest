@@ -101,7 +101,8 @@ void Widget::onfinished()
 
 void Widget::onfinished_1()
 {
-    qDebug() << "test2" << endl;
+//    qDebug() << "test2" << endl;
+    ui->textBrowser->clear();
 
     QNetworkReply *reply =  qobject_cast<QNetworkReply*>(sender());;
 
