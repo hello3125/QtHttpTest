@@ -3,6 +3,7 @@
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QMessageBox>
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
@@ -29,5 +30,6 @@ private slots:
 private:
     Ui::Widget *ui;
     QNetworkAccessManager *manager;
+    void myError(const QString& str);
 };
 #endif // WIDGET_H

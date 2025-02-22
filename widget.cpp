@@ -4,6 +4,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QSslSocket>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include "qdebug.h"
 
 Widget::Widget(QWidget *parent)
@@ -17,6 +19,17 @@ Widget::Widget(QWidget *parent)
 
     manager = new QNetworkAccessManager(this);
     //connect(manager,&QNetworkAccessManager::finished,this,&Widget::onfinished);
+
+    //限制下行政区划，只允许数字
+    QRegularExpression regex("\\d*");
+    QRegularExpressionValidator *validator = new QRegularExpressionValidator(regex,ui->code);
+    ui->code->setValidator(validator);
+
+    //限制食物，只允许输入中文字符
+    QRegularExpression regex_1("^[\u4e00-\u9fa5\u3000\uFF00-\uFFEF]+$");
+    QRegularExpressionValidator *validator_1 = new QRegularExpressionValidator(regex_1, ui->foodLineEdit);
+    ui->foodLineEdit->setValidator(validator_1);
+
 }
 
 Widget::~Widget()
@@ -26,6 +39,11 @@ Widget::~Widget()
 
 void Widget::on_getBut_clicked()
 {
+    if(ui->code->text().isEmpty()){
+        //这里可以整理下区划代码的规则，检测错误的区划代码，这里仅检测不能为空
+        myError("区划代码不能为空！！");
+        return;
+    }
     QNetworkRequest req(QUrl(QString("https://zj.v.api.aa1.cn/api/xz/?code=%1").arg(ui->code->text())));
     //qDebug()<< QString("https://zj.v.api.aa1.cn/api/xz/?code=%1").arg(ui->code->text()) << endl;
     QSslConfiguration config = QSslConfiguration::defaultConfiguration();
@@ -35,7 +53,8 @@ void Widget::on_getBut_clicked()
 
     QNetworkReply* reply = manager->get(req);
     connect(reply,&QNetworkReply::finished,this,&Widget::onfinished);
-    qDebug() << "test1" << endl;
+    //qDebug() << "test1" << endl;
+
 }
 
 void Widget::onfinished()
@@ -44,14 +63,16 @@ void Widget::onfinished()
     QNetworkReply *reply = (QNetworkReply*)(sender());
 
     if(reply->error() != QNetworkReply::NoError) {
-            qDebug() << "Network Error: " << reply->errorString();
+            qDebug() << "QNetworkReply Error: " << reply->errorString();
+            myError("QNetworkReply Error"+reply->errorString());
             return;
         }
 
     QByteArray data = reply->readAll();
     reply->deleteLater();//读取完删除
     if(data.isEmpty()){
-        qDebug() << "test3" << endl;
+        //qDebug() << "test3" << endl;
+        myError("getData is empty!");
         return;
     }
 
@@ -59,6 +80,10 @@ void Widget::onfinished()
     QJsonDocument jd = QJsonDocument::fromJson(data);
     if(jd.isObject()){
         QJsonObject jo = jd.object();
+        if(jo.value("code")!= 200){
+             myError("code:" + jo.value("code").toString()+",msg:"+jo.value("msg").toString());
+             return;
+        }
         QJsonObject joData = jo.value("data").toObject();
         ui->NameLabel->setText(joData.value("Name").toString());
         ui->ProvinceLabel->setText(joData.value("Province").toString());
@@ -67,6 +92,10 @@ void Widget::onfinished()
         ui->TowLabel->setText(joData.value("Tow").toString());
         ui->VillagLabel->setText(joData.value("Villag").toString());
         ui->LevelTypeLabel->setText(joData.value("LevelType").toString());
+
+        if(jo.value("ID").isNull()){
+            myError("The query result is empty. Please check the code!!");
+        }
     }
 
 }
@@ -77,14 +106,15 @@ void Widget::onfinished_1()
     QNetworkReply *reply = (QNetworkReply*)(sender());
 
     if(reply->error() != QNetworkReply::NoError) {
-            qDebug() << "Network Error: " << reply->errorString();
+            qDebug() << "QNetworkReply Error: " << reply->errorString();
+            myError("QNetworkReply Error: " + reply->errorString());
             return;
         }
 
     QByteArray data = reply->readAll();
     reply->deleteLater();//读取完删除
     if(data.isEmpty()){
-        qDebug() << "test3" << endl;
+        myError("post data is empty!");
         return;
     }
 
@@ -92,13 +122,17 @@ void Widget::onfinished_1()
     QJsonDocument jd = QJsonDocument::fromJson(data);
     if(jd.isObject()){
         QJsonObject jo = jd.object();
+        if(jo.value("code")!=200){
+             myError("code:" + jo.value("code").toString()+",msg:"+jo.value("msg").toString());
+             return;
+        }
+
         QJsonObject joData = jo.value("data").toObject();
 
         // 检查"data"下是否存在"lists"数组
         if (joData.contains("lists") && joData["lists"].isArray()) {
             QJsonArray listsArray = joData["lists"].toArray();
 
-            // 遍历列表中的每个元素
             foreach (const QJsonValue &value, listsArray) {
                 if (value.isObject()) {
                     QJsonObject item = value.toObject();
@@ -111,12 +145,19 @@ void Widget::onfinished_1()
                     ui->textBrowser->append(food1+"+"+food2+":"+consequence);
                 }
             }
+        }else{
+            myError("post lists is empty");
         }
     }
 }
 
 void Widget::on_postBut_clicked()
 {
+    if(ui->foodLineEdit->text().isEmpty()){
+        //输入校验：这里仅检测食物不得为空
+        myError("食物不能为空！！");
+        return;
+    }
     QNetworkRequest req(QUrl(QString("https://api.istero.com/resource/food/combinations")));
     QSslConfiguration config = QSslConfiguration::defaultConfiguration();
     config.setProtocol(QSsl::AnyProtocol);//表示可以使用任何支持的SSL/TLS协议版本,用来解决
@@ -134,4 +175,9 @@ void Widget::on_postBut_clicked()
     QNetworkReply* reply = manager->post(req,dataArray);
     connect(reply,&QNetworkReply::finished,this,&Widget::onfinished_1);
     qDebug() << "test1" << endl;
+}
+
+void Widget::myError(const QString &str)
+{
+    QMessageBox::critical(this, "报错",str);
 }
